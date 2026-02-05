@@ -7,6 +7,7 @@ const startTime = Date.now()
 
 export async function routes(app: FastifyInstance) {
   // Health check route
+
   app.get('/health', async (req, reply) => {
     const uptime = Math.floor((Date.now() - startTime) / 1000)
     const response = {
