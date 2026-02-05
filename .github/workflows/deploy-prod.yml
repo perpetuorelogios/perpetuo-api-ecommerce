@@ -42,6 +42,9 @@ jobs:
 
             cd /var/www/perpetuorelogios/api/app
 
+            # Configurar variáveis de ambiente para uso com Redis Cloud
+            cat > .env <
+
             # Instalar dependências
             npm install
 
@@ -49,6 +52,7 @@ jobs:
             npm run build || true
 
             # Gerar Prisma Client e aplicar migrations
+            npx prisma init
             npx prisma generate
             npx prisma migrate deploy
 
