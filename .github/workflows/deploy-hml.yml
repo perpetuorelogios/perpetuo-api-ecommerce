@@ -9,11 +9,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout do código no runner
+      # 1️⃣ Checkout
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Copia o código para o servidor (SCP)
+      # 2️⃣ Copia código para HML
       - name: Copy API to server (HML)
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -25,7 +25,7 @@ jobs:
           target: "/var/www/perpetuorelogios-hml/api/app"
           rm: true
 
-      # 3️⃣ Build + Deploy via Docker no servidor
+      # 3️⃣ Build + Deploy HML (ISOLADO)
       - name: Build and Deploy API HML
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -65,5 +65,5 @@ jobs:
             JWT_EXPIRES_IN=1d
             EOF
 
-            docker compose down || true
-            docker compose up -d --build
+            docker compose -p perpetuo-hml down || true
+            docker compose -p perpetuo-hml up -d --build
