@@ -33,30 +33,42 @@ jobs:
           script: |
             set -e
 
-            # Instalar Node.js (versão mais recente) usando NodeSource
-            curl -fsSL https://deb.nodesource.com/setup_current.x | bash -
+            echo "🚀 Deploy iniciado"
+
+            # -----------------------------
+            # Node.js 20 LTS (NodeSource)
+            # -----------------------------
+            curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
             apt-get install -y nodejs
 
-            # Instalar PM2 globalmente
+            node -v
+            npm -v
+
+            # -----------------------------
+            # PM2
+            # -----------------------------
             npm install -g pm2
 
+            # -----------------------------
+            # App
+            # -----------------------------
             cd /var/www/perpetuorelogios/api/app
 
-            # Configurar variáveis de ambiente para uso com Redis Cloud
-            cat > .env <
-
-            # Instalar dependências
+            # Dependências
             npm install
 
-            # Build da aplicação, se necessário
+            # Build (não quebra se não existir)
             npm run build || true
 
-            # Gerar Prisma Client e aplicar migrations
-            npx prisma init
+            # -----------------------------
+            # Prisma (produção)
+            # -----------------------------
             npx prisma generate
             npx prisma migrate deploy
 
-            # Configurar variáveis de ambiente para uso com Redis Cloud
+            # -----------------------------
+            # Environment
+            # -----------------------------
             echo "NODE_ENV=prod" > .env
             echo "PORT=3000" >> .env
             echo "DATABASE_URL=${{ secrets.PROD_DATABASE_URL }}" >> .env
@@ -64,6 +76,10 @@ jobs:
             echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
             echo "JWT_EXPIRES_IN=1d" >> .env
 
-            # Reiniciar/Startar a aplicação com PM2
+            # -----------------------------
+            # PM2 start / restart
+            # -----------------------------
             pm2 restart app || pm2 start npm --name app -- run start
             pm2 save
+
+            echo "✅ Deploy finalizado com sucesso"
