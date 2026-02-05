@@ -11,10 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build image
-        run: docker build -t perpetuo-api:prod .
-
-      - name: Deploy PROD
+      - name: Deploy PROD via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -26,20 +23,25 @@ jobs:
 
             cd /var/www/perpetuorelogios/api
 
-            cat > .env <<EOF
-            NODE_ENV=prod
-            PORT=3000
-            DATABASE_URL=${{ secrets.PROD_DATABASE_URL }}
-            REDIS_URL=redis://redis:6379
-            JWT_SECRET=${{ secrets.JWT_SECRET }}
-            JWT_EXPIRES_IN=1d
+            # recebe código
+            rm -rf app || true
+            mkdir app
+            cd app
+
+            cat > Dockerfile <<'EOF'
+            FROM node:20-alpine
+            WORKDIR /app
+            COPY . .
+            RUN npm ci
+            RUN npm run build
+            EXPOSE 3000
+            CMD ["node", "dist/main.cjs"]
             EOF
 
             cat > docker-compose.yml <<EOF
-            version: "3.9"
             services:
               api:
-                image: perpetuo-api:prod
+                build: .
                 container_name: perpetuo-api-prod
                 restart: unless-stopped
                 env_file: .env
@@ -54,5 +56,14 @@ jobs:
                 restart: unless-stopped
             EOF
 
-            docker compose down || true
-            docker compose up -d
+            cat > .env <<EOF
+            NODE_ENV=prod
+            PORT=3000
+            DATABASE_URL=${{ secrets.PROD_DATABASE_URL }}
+            REDIS_URL=redis://redis:6379
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            JWT_EXPIRES_IN=1d
+            EOF
+
+            /usr/bin/docker compose down || true
+            /usr/bin/docker compose up -d --build
