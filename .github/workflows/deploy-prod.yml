@@ -1,8 +1,8 @@
-name: Deploy HML
+name: Deploy API PROD
 
 on:
   push:
-    branches: ["develop"]
+    branches: ["main"]
 
 jobs:
   deploy:
@@ -13,8 +13,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Copia código para HML
-      - name: Copy API to server (HML)
+      # 2️⃣ Copia código para PROD
+      - name: Copy API to server (PROD)
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -22,11 +22,11 @@ jobs:
           port: 22
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           source: "."
-          target: "/var/www/perpetuorelogios-hml/api/app"
+          target: "/var/www/perpetuorelogios/api/app"
           rm: true
 
-      # 3️⃣ Build + Deploy HML (ISOLADO)
-      - name: Build and Deploy API HML
+      # 3️⃣ Build + Deploy PROD (ISOLADO)
+      - name: Build and Deploy API PROD
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -36,34 +36,34 @@ jobs:
           script: |
             set -e
 
-            cd /var/www/perpetuorelogios-hml/api/app
+            cd /var/www/perpetuorelogios/api/app
 
             cat > docker-compose.yml <<'EOF'
             services:
               api:
                 build: .
-                container_name: perpetuo-api-hml
+                container_name: perpetuo-api-prod
                 restart: unless-stopped
                 env_file: .env
                 ports:
-                  - "4000:3000"
+                  - "3000:3000"
                 depends_on:
                   - redis
 
               redis:
                 image: redis:7-alpine
-                container_name: perpetuo-redis-hml
+                container_name: perpetuo-redis-prod
                 restart: unless-stopped
             EOF
 
             cat > .env <<'EOF'
-            NODE_ENV=hml
+            NODE_ENV=prod
             PORT=3000
-            DATABASE_URL=${{ secrets.DATABASE_URL_HML }}
+            DATABASE_URL=${{ secrets.PROD_DATABASE_URL }}
             REDIS_URL=redis://redis:6379
-            JWT_SECRET=${{ secrets.JWT_SECRET_HML }}
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
             JWT_EXPIRES_IN=1d
             EOF
 
-            docker compose -p perpetuo-hml down || true
-            docker compose -p perpetuo-hml up -d --build
+            docker compose -p perpetuo-prod down || true
+            docker compose -p perpetuo-prod up -d --build

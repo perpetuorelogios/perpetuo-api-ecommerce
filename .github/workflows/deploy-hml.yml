@@ -60,4 +60,10 @@ jobs:
             NODE_ENV=hml
             PORT=3000
             DATABASE_URL=${{ secrets.DATABASE_URL_HML }}
+            REDIS_URL=redis://redis:6379
+            JWT_SECRET=${{ secrets.JWT_SECRET_HML }}
+            JWT_EXPIRES_IN=1d
+            EOF
 
+            docker compose -p perpetuo-hml down || true
+            docker compose -p perpetuo-hml up -d --build
