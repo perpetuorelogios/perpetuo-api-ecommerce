@@ -11,7 +11,7 @@ export async function routes(app: FastifyInstance) {
   app.get('/health', async (req, reply) => {
     const uptime = Math.floor((Date.now() - startTime) / 1000)
     const response = {
-      status: 'ok',
+      status: 'ok ok ok maoe',
       timestamp: new Date().toISOString(),
       uptime,
       version: '1.0.0',
