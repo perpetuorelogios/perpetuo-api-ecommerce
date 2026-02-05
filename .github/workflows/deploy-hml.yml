@@ -1,0 +1,58 @@
+name: Deploy API HML
+
+on:
+  push:
+    branches: [develop]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t perpetuo-api:hml .
+
+      - name: Deploy HML
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          port: ${{ secrets.SSH_PORT }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+
+            cd /var/www/perpetuorelogios-hml/api
+
+            cat > .env <<EOF
+            NODE_ENV=hml
+            PORT=3000
+            DATABASE_URL=${{ secrets.HML_DATABASE_URL }}
+            REDIS_URL=redis://redis:6379
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            JWT_EXPIRES_IN=1d
+            EOF
+
+            cat > docker-compose.yml <<EOF
+            version: "3.9"
+            services:
+              api:
+                image: perpetuo-api:hml
+                container_name: perpetuo-api-hml
+                restart: unless-stopped
+                env_file: .env
+                ports:
+                  - "3001:3000"
+                depends_on:
+                  - redis
+
+              redis:
+                image: redis:7-alpine
+                container_name: perpetuo-redis-hml
+                restart: unless-stopped
+            EOF
+
+            docker compose down || true
+            docker compose up -d
