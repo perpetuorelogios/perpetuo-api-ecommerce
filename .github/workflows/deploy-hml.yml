@@ -25,7 +25,7 @@ jobs:
           target: "/var/www/perpetuorelogios-hml/api/app"
           rm: true
 
-      # 3️⃣ Build + Deploy HML (TOTALMENTE ISOLADO)
+      # 3️⃣ Build + Deploy HML (ISOLADO DE VERDADE)
       - name: Build and Deploy API HML
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -42,7 +42,6 @@ jobs:
             services:
               api:
                 build: .
-                container_name: perpetuo-api-hml
                 restart: unless-stopped
                 env_file: .env
                 ports:
@@ -52,7 +51,6 @@ jobs:
 
               redis:
                 image: redis:7-alpine
-                container_name: perpetuo-redis-hml
                 restart: unless-stopped
                 volumes:
                   - redis-hml-data:/data
@@ -64,7 +62,6 @@ jobs:
             cat > .env <<'EOF'
             NODE_ENV=hml
             PORT=3000
-            DATABASE_URL=${{ secrets.DATABASE_URL_HML }}
             REDIS_URL=redis://redis:6379
             JWT_SECRET=${{ secrets.JWT_SECRET_HML }}
             JWT_EXPIRES_IN=1d
