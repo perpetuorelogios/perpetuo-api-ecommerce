@@ -33,17 +33,24 @@ jobs:
           script: |
             set -e
 
+            # Instalar Node.js (versão mais recente) usando NodeSource
+            curl -fsSL https://deb.nodesource.com/setup_current.x | bash -
+            apt-get install -y nodejs
+
+            # Instalar PM2 globalmente
+            npm install -g pm2
+
             cd /var/www/perpetuorelogios/api/app
 
-            # Certifique-se de que Node.js e PM2 estejam instalados
             # Instalar dependências
             npm install
 
-            # Build da aplicação, se necessário (remova se não usar build step)
+            # Build da aplicação, se necessário
             npm run build || true
+
+            # Gerar Prisma Client e aplicar migrations
             npx prisma generate
             npx prisma migrate deploy
-
 
             # Configurar variáveis de ambiente para uso com Redis Cloud
             echo "NODE_ENV=prod" > .env
