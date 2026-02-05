@@ -25,7 +25,7 @@ jobs:
           target: "/var/www/perpetuorelogios/api/app"
           rm: true
 
-      # 3️⃣ Build + Deploy API + Redis
+      # 3️⃣ Build + Deploy API + Redis (PRISMA RODA NO START)
       - name: Build and Deploy API PROD
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -70,19 +70,3 @@ jobs:
 
             docker compose -p perpetuo-prod down || true
             docker compose -p perpetuo-prod up -d --build
-
-      # 4️⃣ Prisma Migrate Deploy (PROD SAFE)
-      - name: Run Prisma Migrations (PROD)
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: root
-          port: 22
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            set -e
-
-            cd /var/www/perpetuorelogios/api/app
-
-            docker compose -p perpetuo-prod exec -T api \
-              npx prisma migrate deploy
