@@ -25,7 +25,7 @@ jobs:
           target: "/var/www/perpetuorelogios/api/app"
           rm: true
 
-      # 3️⃣ Build + Deploy PROD (TOTALMENTE ISOLADO)
+      # 3️⃣ Build + Deploy PROD (API + Redis apenas)
       - name: Build and Deploy API PROD
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -42,7 +42,6 @@ jobs:
             services:
               api:
                 build: .
-                container_name: perpetuo-api-prod
                 restart: unless-stopped
                 env_file: .env
                 ports:
@@ -52,7 +51,6 @@ jobs:
 
               redis:
                 image: redis:7-alpine
-                container_name: perpetuo-redis-prod
                 restart: unless-stopped
                 volumes:
                   - redis-prod-data:/data
@@ -64,7 +62,6 @@ jobs:
             cat > .env <<'EOF'
             NODE_ENV=prod
             PORT=3000
-            DATABASE_URL=${{ secrets.PROD_DATABASE_URL }}
             REDIS_URL=redis://redis:6379
             JWT_SECRET=${{ secrets.JWT_SECRET }}
             JWT_EXPIRES_IN=1d
