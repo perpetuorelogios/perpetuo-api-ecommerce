@@ -1,5 +1,5 @@
 import jwt, { SignOptions } from 'jsonwebtoken'
-import { env } from '../../env'
+import { env } from '../../env.js'
 
 export function signToken(
   payload: object,

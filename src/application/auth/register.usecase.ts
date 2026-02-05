@@ -1,7 +1,7 @@
 import bcrypt from 'bcrypt'
-import { User } from '../../domain/user/user.entity'
-import type { UserRepository } from '../../domain/user/user.repository'
-import type { RegisterRequest } from '../dtos/register.dto'
+import { User } from '../../domain/user/user.entity.js'
+import type { UserRepository } from '../../domain/user/user.repository.js'
+import type { RegisterRequest } from '../dtos/register.dto.js'
 
 export class RegisterUseCase {
   constructor(private userRepo: UserRepository) {}

@@ -1,6 +1,6 @@
-import { prisma } from '../database/prisma.client'
-import { User } from '../../domain/user/user.entity'
-import { UserRepository } from '../../domain/user/user.repository'
+import { prisma } from '../database/prisma.client.js'
+import { User } from '../../domain/user/user.entity.js'
+import { UserRepository } from '../../domain/user/user.repository.js'
 
 export class PrismaUserRepository implements UserRepository {
   async findByEmail(email: string) {

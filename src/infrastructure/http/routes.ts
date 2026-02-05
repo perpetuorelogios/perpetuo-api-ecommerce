@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify'
-import { PrismaUserRepository } from '../repositories/prisma-user.repository'
-import { RegisterUseCase } from '../../application/auth/register.usecase'
-import { RegisterRequestSchema } from '../../application/dtos/register.dto'
+import { PrismaUserRepository } from '../repositories/prisma-user.repository.js'
+import { RegisterUseCase } from '../../application/auth/register.usecase.js'
+import { RegisterRequestSchema } from '../../application/dtos/register.dto.js'
 
 const startTime = Date.now()
 
