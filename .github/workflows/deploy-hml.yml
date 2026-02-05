@@ -25,7 +25,7 @@ jobs:
           target: "/var/www/perpetuorelogios-hml/api/app"
           rm: true
 
-      # 3️⃣ Build + Deploy HML (ISOLADO DE VERDADE)
+      # 3️⃣ Build + Deploy API + Redis (HML isolado)
       - name: Build and Deploy API HML
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -62,6 +62,7 @@ jobs:
             cat > .env <<'EOF'
             NODE_ENV=hml
             PORT=3000
+            DATABASE_URL=${{ secrets.HML_DATABASE_URL }}
             REDIS_URL=redis://redis:6379
             JWT_SECRET=${{ secrets.JWT_SECRET_HML }}
             JWT_EXPIRES_IN=1d
@@ -69,3 +70,19 @@ jobs:
 
             docker compose -p perpetuo-hml down || true
             docker compose -p perpetuo-hml up -d --build
+
+      # 4️⃣ Prisma Migrate Deploy (HML SAFE)
+      - name: Run Prisma Migrations (HML)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: root
+          port: 22
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+
+            cd /var/www/perpetuorelogios-hml/api/app
+
+            docker compose -p perpetuo-hml exec -T api \
+              npx prisma migrate deploy
