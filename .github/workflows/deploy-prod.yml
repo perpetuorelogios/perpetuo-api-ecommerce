@@ -36,7 +36,13 @@ jobs:
             echo "🚀 Deploy iniciado"
 
             # -----------------------------
-            # Node.js 20 LTS (NodeSource)
+            # REMOVER Node antigo (25)
+            # -----------------------------
+            apt-get remove -y nodejs || true
+            apt-get autoremove -y || true
+
+            # -----------------------------
+            # Node.js 20 LTS
             # -----------------------------
             curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
             apt-get install -y nodejs
@@ -54,20 +60,10 @@ jobs:
             # -----------------------------
             cd /var/www/perpetuorelogios/api/app
 
-            # Dependências
             npm install
 
-            # Build (não quebra se não existir)
-            npm run build || true
-
             # -----------------------------
-            # Prisma (produção)
-            # -----------------------------
-            npx prisma generate
-            npx prisma migrate deploy
-
-            # -----------------------------
-            # Environment
+            # Environment (ANTES do Prisma)
             # -----------------------------
             echo "NODE_ENV=prod" > .env
             echo "PORT=3000" >> .env
@@ -77,7 +73,18 @@ jobs:
             echo "JWT_EXPIRES_IN=1d" >> .env
 
             # -----------------------------
-            # PM2 start / restart
+            # Prisma (produção)
+            # -----------------------------
+            npx prisma generate
+            npx prisma migrate deploy
+
+            # -----------------------------
+            # Build
+            # -----------------------------
+            npm run build || true
+
+            # -----------------------------
+            # PM2
             # -----------------------------
             pm2 restart app || pm2 start npm --name app -- run start
             pm2 save
