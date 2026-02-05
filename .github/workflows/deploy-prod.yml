@@ -36,8 +36,10 @@ jobs:
             echo "🚀 Deploy iniciado"
 
             # -----------------------------
-            # REMOVER Node antigo (25)
+            # REMOVER Node antigo
             # -----------------------------
+            # Removemos para garantir uma instalação limpa, mas se quiser velocidade
+            # futura, você pode remover estas linhas de apt-get remove.
             apt-get remove -y nodejs || true
             apt-get autoremove -y || true
 
@@ -51,32 +53,42 @@ jobs:
             npm -v
 
             # -----------------------------
-            # PM2
+            # PM2 e Dependências Globais
             # -----------------------------
             npm install -g pm2
 
             # -----------------------------
-            # App
+            # App Install
             # -----------------------------
             cd /var/www/perpetuorelogios/api/app
-
             npm install
 
             # -----------------------------
-            # Environment (ANTES do Prisma)
+            # PRISMA MIGRATE (Porta 5432 - Session)
             # -----------------------------
-            echo "NODE_ENV=prod" > .env
-            echo "PORT=3000" >> .env
-            echo "DATABASE_URL=${{ secrets.PROD_DATABASE_URL }}" >> .env
-            echo "REDIS_URL=${{ secrets.PROD_REDIS_URL }}" >> .env
-            echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
-            echo "JWT_EXPIRES_IN=1d" >> .env
+            # Define a variável APENAS na memória para rodar a migração
+            # Isso evita erros de IPv4 e permite alterar o banco
+            echo "⚡ Rodando Prisma Migrate..."
+            export DATABASE_URL="${{ secrets.PROD_MIGRATION_URL }}"
 
-            # -----------------------------
-            # Prisma (produção)
-            # -----------------------------
             npx prisma generate
             npx prisma migrate deploy
+
+            # Limpa a variável da memória para não confundir o próximo passo
+            unset DATABASE_URL
+
+            # -----------------------------
+            # Gerar .env Final (Porta 6543 - Transaction)
+            # -----------------------------
+            # Usamos printf para evitar erros com caracteres especiais na senha
+            echo "📝 Gerando arquivo .env para Produção..."
+
+            printf "NODE_ENV=prod\n" > .env
+            printf "PORT=3000\n" >> .env
+            printf "DATABASE_URL=%s\n" "${{ secrets.PROD_DATABASE_URL }}" >> .env
+            printf "REDIS_URL=%s\n" "${{ secrets.PROD_REDIS_URL }}" >> .env
+            printf "JWT_SECRET=%s\n" "${{ secrets.JWT_SECRET }}" >> .env
+            printf "JWT_EXPIRES_IN=1d\n" >> .env
 
             # -----------------------------
             # Build
@@ -84,8 +96,9 @@ jobs:
             npm run build || true
 
             # -----------------------------
-            # PM2
+            # PM2 Restart
             # -----------------------------
+            # O app vai ler o .env criado acima e conectar na porta 6543 (rápida)
             pm2 restart app || pm2 start npm --name app -- run start
             pm2 save
 
