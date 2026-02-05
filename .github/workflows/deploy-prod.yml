@@ -12,78 +12,104 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Copy API to server (PROD)
+      # 1. SETUP NODE (No GitHub Actions)
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # 2. BUILD (No GitHub Actions - Economiza CPU do seu servidor)
+      - name: Install & Build (CI)
+        env:
+          # Variáveis necessárias apenas para o build (não conectam no banco real aqui)
+          DIRECT_URL: ${{ secrets.PROD_DIRECT_URL }}
+          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+        run: |
+          npm ci
+          npx prisma generate
+          npm run build
+          # Removemos node_modules para o upload ser rápido
+          rm -rf node_modules
+
+      # 3. UPLOAD (Artifacts)
+      - name: Copy Built Files to Server
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SSH_HOST }}
           username: root
           port: 22
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "."
+          # MUDANÇA 1: Enviamos a pasta 'dist' pronta + arquivos de config do Prisma
+          source: "dist,prisma,package.json,package-lock.json,prisma.config.ts"
           target: "/var/www/perpetuorelogios/api/app"
-          rm: true
+          # MUDANÇA 2: rm: false para NÃO APAGAR o site enquanto faz upload
+          rm: false
 
-      - name: Install dependencies and restart app with PM2
+      # 4. FINALIZAR NO SERVIDOR (SSH)
+      - name: Install Production Deps & Reload
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          # Mapeamos as senhas aqui para segurança (evita erro de caracteres especiais)
+          DB_URL: ${{ secrets.PROD_DATABASE_URL }}
+          DIR_URL: ${{ secrets.PROD_DIRECT_URL }}
+          REDIS_URL: ${{ secrets.PROD_REDIS_URL }}
+          JWT_SEC: ${{ secrets.JWT_SECRET }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: root
           port: 22
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          # Injetamos as variáveis no terminal SSH
+          envs: DB_URL,DIR_URL,REDIS_URL,JWT_SEC
           script: |
             set -e
+            echo "🚀 Deploy Zero-Downtime Iniciado"
 
-            echo "🚀 Deploy Otimizado Iniciado"
-
-            # -----------------------------
-            # Verificação do Node (Sem reinstalar)
-            # -----------------------------
-            node -v
-            npm -v
-
-            # -----------------------------
-            # Atualização do Código
-            # -----------------------------
             cd /var/www/perpetuorelogios/api/app
-            npm install
 
             # -----------------------------
-            # PRISMA (Modo Autônomo)
+            # 1. Instalar Dependências
             # -----------------------------
-            echo "⚡ Sincronizando Schema com o Banco..."
-
-            # Injetamos a DIRECT_URL (Porta 5432) para alterar a estrutura
-            export DIRECT_URL="${{ secrets.PROD_DIRECT_URL }}"
-
-            npx prisma generate
-
-            # AQUI ESTÁ A MÁGICA:
-            # db push sincroniza o banco direto com o arquivo schema.prisma
-            npx prisma db push --accept-data-loss
-
-            unset DIRECT_URL
+            # Precisamos instalar tudo para ler o prisma.config.ts
+            echo "📦 Atualizando dependências..."
+            npm ci
 
             # -----------------------------
-            # Gerar .env para o App Rodar
+            # 2. Gerar .env (Para o PM2 rodar o app)
             # -----------------------------
-            echo "📝 Gerando arquivo .env para Produção..."
-
-            printf "NODE_ENV=prod\n" > .env
+            echo "📝 Atualizando .env..."
+            printf "NODE_ENV=production\n" > .env
             printf "PORT=3000\n" >> .env
-            # O app vai ler esta URL rápida (Porta 6543)
-            printf "DATABASE_URL=%s\n" "${{ secrets.PROD_DATABASE_URL }}" >> .env
-            printf "REDIS_URL=%s\n" "${{ secrets.PROD_REDIS_URL }}" >> .env
-            printf "JWT_SECRET=%s\n" "${{ secrets.JWT_SECRET }}" >> .env
+            printf "DATABASE_URL=\"%s\"\n" "$DB_URL" >> .env
+            printf "DIRECT_URL=\"%s\"\n" "$DIR_URL" >> .env
+            printf "REDIS_URL=\"%s\"\n" "$REDIS_URL" >> .env
+            printf "JWT_SECRET=\"%s\"\n" "$JWT_SEC" >> .env
             printf "JWT_EXPIRES_IN=1d\n" >> .env
 
             # -----------------------------
-            # Build e Reload (Zero Downtime)
+            # 3. PRISMA (Banco de Dados)
             # -----------------------------
-            echo "🔨 Buildando..."
-            npm run build
+            echo "⚡ Sincronizando Banco de Dados..."
 
-            echo "🔄 Atualizando processo..."
-            pm2 reload app --update-env || pm2 start npm --name app -- run start
+            # Gera o client com base no O.S. do servidor
+            npx -y prisma generate
+
+            # Roda o push usando as variáveis injetadas + arquivo config.ts que subiu no upload
+            DATABASE_URL="$DB_URL" DIRECT_URL="$DIR_URL" npx -y prisma db push --accept-data-loss
+
+            # -----------------------------
+            # 4. LIMPEZA (Opcional, mas bom para economizar espaço)
+            # -----------------------------
+            echo "🧹 Otimizando node_modules..."
+            npm prune --production
+
+            # -----------------------------
+            # 5. RELOAD (Zero Downtime)
+            # -----------------------------
+            echo "🔄 Reiniciando aplicação..."
+
+            # O 'reload' sobe o novo código em paralelo e só mata o velho quando o novo estiver pronto
+            pm2 reload app --update-env || pm2 start dist/main.js --name app
             pm2 save
 
-            echo "✅ Deploy finalizado com sucesso"
+            echo "✅ Deploy finalizado com Sucesso!"
