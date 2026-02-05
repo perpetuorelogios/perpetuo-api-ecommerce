@@ -12,25 +12,26 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 1. SETUP & BUILD (No GitHub)
+      # 1. SETUP NODE (No GitHub Actions)
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
+      # 2. BUILD (No GitHub Actions - Economiza CPU do seu servidor)
       - name: Install & Build (CI)
         env:
-          # Variáveis fakes apenas para o build não quebrar
+          # Variáveis necessárias apenas para o build (não conectam no banco real aqui)
           DIRECT_URL: ${{ secrets.PROD_DIRECT_URL }}
           DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
         run: |
           npm ci
           npx prisma generate
           npm run build
-          # Removemos node_modules para o upload ser leve
+          # Removemos node_modules para o upload ser rápido
           rm -rf node_modules
 
-      # 2. UPLOAD (Apenas o necessário)
+      # 3. UPLOAD (Artifacts)
       - name: Copy Built Files to Server
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -38,16 +39,17 @@ jobs:
           username: root
           port: 22
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          # Enviamos apenas o essencial. Note que NÃO enviamos o prisma.config.ts
-          source: "dist,prisma,package.json,package-lock.json"
+          # MUDANÇA 1: Enviamos a pasta 'dist' pronta + arquivos de config do Prisma
+          source: "dist,prisma,package.json,package-lock.json,prisma.config.ts"
           target: "/var/www/perpetuorelogios/api/app"
-          # rm: false garante Zero Downtime (não apaga o site antes de atualizar)
+          # MUDANÇA 2: rm: false para NÃO APAGAR o site enquanto faz upload
           rm: false
 
-      # 3. RUN (Servidor Leve)
+      # 4. FINALIZAR NO SERVIDOR (SSH)
       - name: Install Production Deps & Reload
         uses: appleboy/ssh-action@v1.0.3
         env:
+          # Mapeamos as senhas aqui para segurança (evita erro de caracteres especiais)
           DB_URL: ${{ secrets.PROD_DATABASE_URL }}
           DIR_URL: ${{ secrets.PROD_DIRECT_URL }}
           REDIS_URL: ${{ secrets.PROD_REDIS_URL }}
@@ -57,54 +59,56 @@ jobs:
           username: root
           port: 22
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          # Injetamos as variáveis no terminal SSH
           envs: DB_URL,DIR_URL,REDIS_URL,JWT_SEC
           script: |
             set -e
-            echo "🚀 Deploy Only-Build Iniciado"
+            echo "🚀 Deploy Zero-Downtime Iniciado"
 
             cd /var/www/perpetuorelogios/api/app
 
             # -----------------------------
-            # 1. Limpeza de Arquivos "Fantasmas"
+            # 1. Instalar Dependências
             # -----------------------------
-            # CORREÇÃO CRÍTICA: Apagamos qualquer rastro de prisma.config.ts antigo.
-            # Isso força o Prisma a usar apenas o schema.prisma e nossas variáveis.
-            rm -f prisma.config.ts tsconfig.json tsup.config.ts
+            # Precisamos instalar tudo para ler o prisma.config.ts
+            echo "📦 Atualizando dependências..."
+            npm ci
 
             # -----------------------------
-            # 2. Instalar APENAS Produção
+            # 2. Gerar .env (Para o PM2 rodar o app)
             # -----------------------------
-            echo "📦 Instalando dependências de produção..."
-            npm ci --omit=dev
-
-            # -----------------------------
-            # 3. Gerar .env (Para a Aplicação)
-            # -----------------------------
-            echo "📝 Gerando .env..."
+            echo "📝 Atualizando .env..."
             printf "NODE_ENV=production\n" > .env
             printf "PORT=3000\n" >> .env
             printf "DATABASE_URL=\"%s\"\n" "$DB_URL" >> .env
+            printf "DIRECT_URL=\"%s\"\n" "$DIR_URL" >> .env
             printf "REDIS_URL=\"%s\"\n" "$REDIS_URL" >> .env
             printf "JWT_SECRET=\"%s\"\n" "$JWT_SEC" >> .env
             printf "JWT_EXPIRES_IN=1d\n" >> .env
 
             # -----------------------------
-            # 4. PRISMA (Truque do Direct URL)
+            # 3. PRISMA (Banco de Dados)
             # -----------------------------
-            echo "⚡ Sincronizando Banco..."
+            echo "⚡ Sincronizando Banco de Dados..."
 
+            # Gera o client com base no O.S. do servidor
             npx -y prisma generate
 
-            # TRUQUE: Injetamos a URL Direta (5432) como DATABASE_URL apenas para este comando.
-            # Como deletamos o prisma.config.ts acima, o Prisma vai obedecer essa variável.
-            DATABASE_URL="$DIR_URL" npx -y prisma db push --accept-data-loss
+            # Roda o push usando as variáveis injetadas + arquivo config.ts que subiu no upload
+            DATABASE_URL="$DB_URL" DIRECT_URL="$DIR_URL" npx -y prisma db push --accept-data-loss
 
             # -----------------------------
-            # 5. RELOAD
+            # 4. LIMPEZA (Opcional, mas bom para economizar espaço)
+            # -----------------------------
+            echo "🧹 Otimizando node_modules..."
+            npm prune --production
+
+            # -----------------------------
+            # 5. RELOAD (Zero Downtime)
             # -----------------------------
             echo "🔄 Reiniciando aplicação..."
 
-            # Garante que roda o arquivo compilado da pasta dist
+            # O 'reload' sobe o novo código em paralelo e só mata o velho quando o novo estiver pronto
             pm2 reload app --update-env || pm2 start dist/main.js --name app
             pm2 save
 
