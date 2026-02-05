@@ -2,39 +2,41 @@ name: Deploy HML
 
 on:
   push:
-    branches: [ "develop" ]
+    branches: ["develop"]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      # 1️⃣ Checkout do código no runner
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Deploy API HML
+      # 2️⃣ Copia o código para o servidor (SCP)
+      - name: Copy API to server (HML)
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: root
+          port: 22
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "."
+          target: "/var/www/perpetuorelogios-hml/api/app"
+          rm: true
+
+      # 3️⃣ Build + Deploy via Docker no servidor
+      - name: Build and Deploy API HML
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
           username: root
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             set -e
 
-            BASE=/var/www/perpetuorelogios-hml/api
-            APP=$BASE/app
-
-            rm -rf $APP
-            mkdir -p $APP
-
-            # COPIA O REPO CORRETO
-            rsync -av --delete \
-              --exclude=node_modules \
-              --exclude=.git \
-              --exclude=.github \
-              /github/workspace/ $APP/
-
-            cd $APP
+            cd /var/www/perpetuorelogios-hml/api/app
 
             cat > docker-compose.yml <<'EOF'
             services:
