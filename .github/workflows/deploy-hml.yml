@@ -20,21 +20,20 @@ jobs:
           port: 22
           script: |
             set -e
-            cd /var/www/perpetuorelogios-hml/api
 
-            rm -rf app || true
-            mkdir app
-            cd app
+            BASE=/var/www/perpetuorelogios-hml/api
+            APP=$BASE/app
 
-            cat > Dockerfile <<'EOF'
-            FROM node:20-alpine
-            WORKDIR /app
-            COPY . .
-            RUN npm install
-            RUN npm run build
-            EXPOSE 3000
-            CMD ["node", "dist/main.cjs"]
-            EOF
+            rm -rf $APP
+            mkdir -p $APP
+
+            # RECEBE O CÓDIGO DO REPO
+            rsync -av --delete \
+              --exclude=node_modules \
+              --exclude=.git \
+              ./ $APP/
+
+            cd $APP
 
             cat > docker-compose.yml <<'EOF'
             services:
@@ -65,3 +64,4 @@ jobs:
 
             docker compose down || true
             docker compose up -d --build
+
