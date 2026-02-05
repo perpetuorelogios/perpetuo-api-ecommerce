@@ -2,8 +2,10 @@ import { defineConfig } from 'tsup'
 
 export default defineConfig({
   entry: ['src/main.ts'],
-  format: ['cjs'],
-  outDir: 'dist',
+  format: ['cjs'],       // Você está usando CJS
+  splitting: false,
+  sourcemap: true,
   clean: true,
-  target: 'node20',
+  // 👇 ADICIONE ESTA LINHA:
+  shims: true,
 })
