@@ -9,11 +9,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Copia código para PROD
       - name: Copy API to server (PROD)
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -25,8 +23,7 @@ jobs:
           target: "/var/www/perpetuorelogios/api/app"
           rm: true
 
-      # 3️⃣ Build + Deploy API + Redis (PRISMA RODA NO START)
-      - name: Build and Deploy API PROD
+      - name: Install dependencies and restart app with PM2
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -38,35 +35,24 @@ jobs:
 
             cd /var/www/perpetuorelogios/api/app
 
-            cat > docker-compose.yml <<'EOF'
-            services:
-              api:
-                build: .
-                restart: unless-stopped
-                env_file: .env
-                ports:
-                  - "3000:3000"
-                depends_on:
-                  - redis
+            # Certifique-se de que Node.js e PM2 estejam instalados
+            # Instalar dependências
+            npm install
 
-              redis:
-                image: redis:7-alpine
-                restart: unless-stopped
-                volumes:
-                  - redis-prod-data:/data
+            # Build da aplicação, se necessário (remova se não usar build step)
+            npm run build || true
+            npx prisma generate
+            npx prisma migrate deploy
 
-            volumes:
-              redis-prod-data:
-            EOF
 
-            cat > .env <<'EOF'
-            NODE_ENV=prod
-            PORT=3000
-            DATABASE_URL=${{ secrets.PROD_DATABASE_URL }}
-            REDIS_URL=redis://redis:6379
-            JWT_SECRET=${{ secrets.JWT_SECRET }}
-            JWT_EXPIRES_IN=1d
-            EOF
+            # Configurar variáveis de ambiente para uso com Redis Cloud
+            echo "NODE_ENV=prod" > .env
+            echo "PORT=3000" >> .env
+            echo "DATABASE_URL=${{ secrets.PROD_DATABASE_URL }}" >> .env
+            echo "REDIS_URL=${{ secrets.PROD_REDIS_URL }}" >> .env
+            echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
+            echo "JWT_EXPIRES_IN=1d" >> .env
 
-            docker compose -p perpetuo-prod down || true
-            docker compose -p perpetuo-prod up -d --build
+            # Reiniciar/Startar a aplicação com PM2
+            pm2 restart app || pm2 start npm --name app -- run start
+            pm2 save
