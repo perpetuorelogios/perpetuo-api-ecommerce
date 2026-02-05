@@ -1,46 +1,58 @@
 # ========================
-# BUILD STAGE
+# 1. BASE STAGE
 # ========================
-FROM node:20-alpine AS builder
+FROM node:20-alpine AS base
 
 WORKDIR /app
 
-# deps primeiro (cache eficiente)
-COPY package*.json ./
-RUN npm ci
+# Dependências do sistema (necessárias para o Prisma/Nest)
+RUN apk add --no-cache openssl libc6-compat
 
-# código
+# ========================
+# 2. DEPS STAGE (Instala node_modules)
+# ========================
+FROM base AS deps
+COPY package*.json ./
+# Instala tudo (incluindo devDependencies)
+RUN npm install
+
+# ========================
+# 3. DEV STAGE (Para rodar local)
+# ========================
+FROM base AS dev
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# build da aplicação
+# ⚠️ NÃO rodamos 'prisma generate' aqui no build de dev.
+# Deixamos para o docker-compose rodar.
+
+EXPOSE 3000
+CMD ["npm", "run", "start:dev"]
+
+# ========================
+# 4. BUILDER STAGE (Para Produção)
+# ========================
+FROM base AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+RUN npx prisma generate
 RUN npm run build
 
-
 # ========================
-# RUNTIME STAGE
+# 5. RUNNER STAGE (Produção Final)
 # ========================
-FROM node:20-alpine
-
+FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
-# dependências nativas exigidas pelo Prisma
-RUN apk add --no-cache openssl libc6-compat
-
-# deps de produção
-COPY package*.json ./
-RUN npm ci --omit=dev
-
-# artefatos buildados
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
+COPY package*.json ./
 
-# gera o Prisma Client no runtime real
+RUN npm ci --omit=dev
 RUN npx prisma generate
-RUN npx prisma migrate deploy
 
-# porta da API
 EXPOSE 3000
-
-# migração + start (fail fast)
 CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.cjs"]

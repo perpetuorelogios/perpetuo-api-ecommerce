@@ -1,16 +1,27 @@
-version: '3.8'
-
 services:
   api:
-    build: .
+    build:
+      context: .
+      target: dev
     container_name: perpetuo-api
     ports:
       - "3000:3000"
-    env_file:
-      - .env
+    environment:
+      NODE_ENV: development
+      # Conexão com o container do banco
+      DATABASE_URL: "postgresql://perpetuo:perpetuo@postgres:5432/perpetuo_local?schema=public"
+      # Ajuste as outras variáveis conforme seu .env local
+      JWT_SECRET: "segredo_local"
+      JWT_EXPIRES_IN: "1d"
+      PORT: 3000
+    volumes:
+      - .:/app
+      - /app/node_modules
     depends_on:
       - postgres
       - redis
+    # Aqui geramos o prisma client ANTES de subir o app
+    command: sh -c "npx prisma generate && npm run start:dev"
     restart: unless-stopped
 
   postgres:

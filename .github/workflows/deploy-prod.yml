@@ -33,54 +33,57 @@ jobs:
           script: |
             set -e
 
-            echo "🚀 Deploy iniciado"
+            echo "🚀 Deploy Otimizado Iniciado"
 
             # -----------------------------
-            # Limpeza e Instalação do Node
+            # Verificação do Node (Sem reinstalar)
             # -----------------------------
-            apt-get remove -y nodejs || true
-            apt-get autoremove -y || true
-            curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-            apt-get install -y nodejs
-            npm install -g pm2
+            node -v
+            npm -v
 
             # -----------------------------
-            # Instalação do App
+            # Atualização do Código
             # -----------------------------
             cd /var/www/perpetuorelogios/api/app
             npm install
 
             # -----------------------------
-            # PRISMA MIGRATE
+            # PRISMA (Modo Autônomo)
             # -----------------------------
-            # Agora injetamos a DIRECT_URL para o Prisma Migrate usar (Porta 5432)
-            # O prisma.config.ts vai ler esta variável automaticamente.
-            echo "⚡ Rodando Prisma Migrate..."
+            echo "⚡ Sincronizando Schema com o Banco..."
 
+            # Injetamos a DIRECT_URL (Porta 5432) para alterar a estrutura
             export DIRECT_URL="${{ secrets.PROD_DIRECT_URL }}"
+
             npx prisma generate
-            npx prisma migrate deploy
+
+            # AQUI ESTÁ A MÁGICA:
+            # db push sincroniza o banco direto com o arquivo schema.prisma
+            npx prisma db push --accept-data-loss
+
             unset DIRECT_URL
 
             # -----------------------------
             # Gerar .env para o App Rodar
             # -----------------------------
-            # O App em si (runtime) vai usar a DATABASE_URL (Porta 6543)
             echo "📝 Gerando arquivo .env para Produção..."
 
             printf "NODE_ENV=prod\n" > .env
             printf "PORT=3000\n" >> .env
-            # O app vai ler esta URL rápida via Adapter:
+            # O app vai ler esta URL rápida (Porta 6543)
             printf "DATABASE_URL=%s\n" "${{ secrets.PROD_DATABASE_URL }}" >> .env
             printf "REDIS_URL=%s\n" "${{ secrets.PROD_REDIS_URL }}" >> .env
             printf "JWT_SECRET=%s\n" "${{ secrets.JWT_SECRET }}" >> .env
             printf "JWT_EXPIRES_IN=1d\n" >> .env
 
             # -----------------------------
-            # Build e Restart
+            # Build e Reload (Zero Downtime)
             # -----------------------------
-            npm run build || true
-            pm2 restart app || pm2 start npm --name app -- run start
+            echo "🔨 Buildando..."
+            npm run build
+
+            echo "🔄 Atualizando processo..."
+            pm2 reload app --update-env || pm2 start npm --name app -- run start
             pm2 save
 
             echo "✅ Deploy finalizado com sucesso"
