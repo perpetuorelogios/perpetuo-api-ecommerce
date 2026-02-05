@@ -27,11 +27,12 @@ jobs:
             rm -rf $APP
             mkdir -p $APP
 
-            # RECEBE O CÓDIGO DO REPO
+            # COPIA O REPO CORRETO
             rsync -av --delete \
               --exclude=node_modules \
               --exclude=.git \
-              ./ $APP/
+              --exclude=.github \
+              /github/workspace/ $APP/
 
             cd $APP
 
@@ -64,4 +65,3 @@ jobs:
 
             docker compose down || true
             docker compose up -d --build
-
