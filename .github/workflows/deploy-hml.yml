@@ -2,39 +2,41 @@ name: Deploy HML
 
 on:
   push:
-    branches: [ "develop" ]
+    branches: ["develop"]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      # 1️⃣ Checkout
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Deploy API HML
+      # 2️⃣ Copia código para HML
+      - name: Copy API to server (HML)
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: root
+          port: 22
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "."
+          target: "/var/www/perpetuorelogios-hml/api/app"
+          rm: true
+
+      # 3️⃣ Build + Deploy HML (ISOLADO)
+      - name: Build and Deploy API HML
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
           username: root
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             set -e
-            cd /var/www/perpetuorelogios-hml/api
 
-            rm -rf app || true
-            mkdir app
-            cd app
-
-            cat > Dockerfile <<'EOF'
-            FROM node:20-alpine
-            WORKDIR /app
-            COPY . .
-            RUN npm install
-            RUN npm run build
-            EXPOSE 3000
-            CMD ["node", "dist/main.cjs"]
-            EOF
+            cd /var/www/perpetuorelogios-hml/api/app
 
             cat > docker-compose.yml <<'EOF'
             services:
@@ -58,10 +60,4 @@ jobs:
             NODE_ENV=hml
             PORT=3000
             DATABASE_URL=${{ secrets.DATABASE_URL_HML }}
-            REDIS_URL=redis://redis:6379
-            JWT_SECRET=${{ secrets.JWT_SECRET_HML }}
-            JWT_EXPIRES_IN=1d
-            EOF
 
-            docker compose down || true
-            docker compose up -d --build
