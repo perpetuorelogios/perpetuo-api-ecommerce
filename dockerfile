@@ -37,6 +37,7 @@ COPY --from=builder /app/prisma ./prisma
 
 # gera o Prisma Client no runtime real
 RUN npx prisma generate
+RUN npx prisma migrate deploy
 
 # porta da API
 EXPOSE 3000
