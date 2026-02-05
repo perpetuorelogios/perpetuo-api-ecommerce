@@ -35,4 +35,4 @@ COPY --from=builder /app/prisma ./prisma
 RUN npx prisma generate
 
 EXPOSE 3000
-CMD ["node", "dist/main.cjs"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.cjs"]
