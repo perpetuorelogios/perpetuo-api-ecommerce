@@ -1,8 +1,8 @@
-name: Deploy API HML
+name: Deploy HML
 
 on:
   push:
-    branches: [develop]
+    branches: [ "develop" ]
 
 jobs:
   deploy:
@@ -11,40 +11,40 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build image
-        run: docker build -t perpetuo-api:hml .
-
-      - name: Deploy HML
+      - name: Deploy API HML
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          port: ${{ secrets.SSH_PORT }}
+          username: root
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
           script: |
             set -e
-
             cd /var/www/perpetuorelogios-hml/api
 
-            cat > .env <<EOF
-            NODE_ENV=hml
-            PORT=3000
-            DATABASE_URL=${{ secrets.HML_DATABASE_URL }}
-            REDIS_URL=redis://redis:6379
-            JWT_SECRET=${{ secrets.JWT_SECRET }}
-            JWT_EXPIRES_IN=1d
+            rm -rf app || true
+            mkdir app
+            cd app
+
+            cat > Dockerfile <<'EOF'
+            FROM node:20-alpine
+            WORKDIR /app
+            COPY . .
+            RUN npm install
+            RUN npm run build
+            EXPOSE 3000
+            CMD ["node", "dist/main.cjs"]
             EOF
 
-            cat > docker-compose.yml <<EOF
-            version: "3.9"
+            cat > docker-compose.yml <<'EOF'
             services:
               api:
-                image: perpetuo-api:hml
+                build: .
                 container_name: perpetuo-api-hml
                 restart: unless-stopped
                 env_file: .env
                 ports:
-                  - "3001:3000"
+                  - "4000:3000"
                 depends_on:
                   - redis
 
@@ -54,5 +54,14 @@ jobs:
                 restart: unless-stopped
             EOF
 
+            cat > .env <<'EOF'
+            NODE_ENV=hml
+            PORT=3000
+            DATABASE_URL=${{ secrets.DATABASE_URL_HML }}
+            REDIS_URL=redis://redis:6379
+            JWT_SECRET=${{ secrets.JWT_SECRET_HML }}
+            JWT_EXPIRES_IN=1d
+            EOF
+
             docker compose down || true
-            docker compose up -d
+            docker compose up -d --build
