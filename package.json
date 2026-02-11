@@ -9,10 +9,7 @@
     "start": "node dist/main.cjs",
     "start:worker": "tsx src/worker.ts",
     "test": "vitest",
-    "db:seed": "prisma db seed"
-  },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts"
   },
   "keywords": [],
   "author": "",

@@ -43,7 +43,7 @@ jobs:
           source: "dist,prisma,package.json,package-lock.json,prisma.config.ts"
           target: "/var/www/perpetuorelogios/api/app"
           # MUDANÇA 2: rm: false para NÃO APAGAR o site enquanto faz upload
-          rm: false
+          rm: true
 
       # 4. FINALIZAR NO SERVIDOR (SSH)
       - name: Install Production Deps & Reload
