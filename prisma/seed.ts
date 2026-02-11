@@ -2,22 +2,7 @@ import { PrismaClient } from '../src/generated/client.js'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { hash } from 'bcrypt'
 
-const ensureSslMode = (url?: string) => {
-  if (!url) return url
-  try {
-    const parsed = new URL(url)
-    if (!parsed.searchParams.get('sslmode')) {
-      parsed.searchParams.set('sslmode', 'require')
-    }
-    return parsed.toString()
-  } catch {
-    if (url.includes('sslmode=')) return url
-    const separator = url.includes('?') ? '&' : '?'
-    return `${url}${separator}sslmode=require`
-  }
-}
-
-const url = ensureSslMode(process.env.DIRECT_URL || process.env.DATABASE_URL)
+const url = process.env.DIRECT_URL || process.env.DATABASE_URL
 console.log('🔗 Database URL:', url?.substring(0, 50) + '...')
 
 const adapter = new PrismaPg({ connectionString: url })
