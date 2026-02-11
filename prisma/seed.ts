@@ -2,7 +2,7 @@ import { PrismaClient } from '../src/generated/client.js'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { hash } from 'bcrypt'
 
-const url = process.env.DIRECT_URL || process.env.DATABASE_URL
+const url = process.env.DATABASE_URL
 console.log('🔗 Database URL:', url?.substring(0, 50) + '...')
 
 const adapter = new PrismaPg({ connectionString: url })
