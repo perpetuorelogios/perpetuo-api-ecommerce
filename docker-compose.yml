@@ -6,14 +6,11 @@ services:
     container_name: perpetuo-api
     ports:
       - "3000:3000"
+    env_file:
+      - .env
     environment:
-      NODE_ENV: development
-      # Conexão com o container do banco
-      DATABASE_URL: "postgresql://perpetuo:perpetuo@postgres:5432/perpetuo_local?schema=public"
-      # Ajuste as outras variáveis conforme seu .env local
-      JWT_SECRET: "segredo_local"
-      JWT_EXPIRES_IN: "1d"
-      PORT: 3000
+      DATABASE_URL: "${DATABASE_URL}"
+      DIRECT_URL: "${DIRECT_URL}"
     volumes:
       - .:/app
       - /app/node_modules
@@ -40,9 +37,48 @@ services:
   redis:
     image: redis:7-alpine
     container_name: perpetuo-redis
+    command: ["redis-server", "--maxmemory-policy", "noeviction"]
     ports:
       - "6379:6379"
     restart: unless-stopped
 
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.2
+    container_name: perpetuo-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    volumes:
+      - elastic_data:/usr/share/elasticsearch/data
+    restart: unless-stopped
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.12.2
+    container_name: perpetuo-logstash
+    environment:
+      - LS_JAVA_OPTS=-Xms256m -Xmx256m
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./docker/logstash/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+    depends_on:
+      - elasticsearch
+    restart: unless-stopped
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.12.2
+    container_name: perpetuo-kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+    restart: unless-stopped
+
 volumes:
   postgres_data:
+  elastic_data:

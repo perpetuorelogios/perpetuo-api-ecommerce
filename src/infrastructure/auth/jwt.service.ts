@@ -14,3 +14,13 @@ export function signToken(
     },
   )
 }
+
+export function signAccessToken(payload: object): string {
+  return jwt.sign(payload, env.JWT_SECRET, {
+    expiresIn: env.ACCESS_TOKEN_EXPIRES_IN,
+  })
+}
+
+export function verifyToken(token: string): object {
+  return jwt.verify(token, env.JWT_SECRET) as object
+}

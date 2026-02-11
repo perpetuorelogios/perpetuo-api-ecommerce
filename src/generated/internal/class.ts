@@ -20,7 +20,7 @@ const config: runtime.GetPrismaClientConfig = {
   "clientVersion": "7.3.0",
   "engineVersion": "9d6ad21cbbceab97458517b147a6a09ff43aa735",
   "activeProvider": "postgresql",
-  "inlineSchema": "// This is your Prisma schema file,\n// learn more about it in the docs: https://pris.ly/d/prisma-schema\n\n// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?\n// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init\n\ngenerator client {\n  provider   = \"prisma-client\"\n  output     = \"../src/generated/\"\n  engineType = \"client\"\n}\n\ndatasource db {\n  provider = \"postgresql\"\n}\n\nmodel User {\n  id        String   @id @default(uuid())\n  email     String   @unique\n  password  String\n  createdAt DateTime @default(now())\n}\n",
+  "inlineSchema": "// This is your Prisma schema file,\n// learn more about it in the docs: https://pris.ly/d/prisma-schema\n\n// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?\n// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init\n\ngenerator client {\n  provider   = \"prisma-client\"\n  output     = \"../src/generated/\"\n  engineType = \"client\"\n}\n\ndatasource db {\n  provider = \"postgresql\"\n}\n\nenum InventoryMovementType {\n  in\n  out\n  reserve\n  release\n  adjust\n}\n\nenum InventoryMovementReferenceType {\n  order\n  cancel\n  return\n  manual\n}\n\nenum CouponType {\n  percentage\n  fixed\n}\n\nenum OrderStatus {\n  draft\n  pending\n  paid\n  completed\n  canceled\n  refunded\n}\n\nenum OrderStatusChangedBy {\n  system\n  admin\n  customer\n}\n\nenum PaymentMethod {\n  credit_card\n  pix\n  boleto\n  transfer\n}\n\nenum PaymentStatus {\n  pending\n  paid\n  failed\n  refunded\n}\n\nenum PaymentProfileType {\n  credit_card\n  debit_card\n  wallet\n}\n\nenum ShippingStatus {\n  pending\n  shipped\n  delivered\n  returned\n}\n\nenum UserRole {\n  admin\n  seller\n  customer\n}\n\nenum PaymentLinkBillingType {\n  UNDEFINED\n  CREDIT_CARD\n  BOLETO\n  PIX\n  TRANSFER\n}\n\nenum PaymentLinkChargeType {\n  DETACHED\n  INSTALLMENT\n  RECURRENT\n}\n\nenum PaymentLinkSubscriptionCycle {\n  MONTHLY\n  WEEKLY\n  YEARLY\n}\n\nenum PaymentLinkStatus {\n  pending\n  paid\n  failed\n  canceled\n}\n\nenum ProductRequestStatus {\n  pending\n  quoted\n  completed\n  canceled\n}\n\nmodel Customer {\n  id              String           @id @default(uuid())\n  name            String\n  email           String           @unique\n  password        String\n  document        String\n  phone           String\n  role            UserRole         @default(customer)\n  createdAt       DateTime         @default(now())\n  updatedAt       DateTime         @updatedAt\n  deletedAt       DateTime?\n  addresses       Address[]\n  orders          Order[]\n  paymentProfiles PaymentProfile[]\n  productRequests ProductRequest[]\n}\n\nmodel Address {\n  id         String    @id @default(uuid())\n  customerId String\n  street     String\n  number     String\n  complement String?\n  city       String\n  state      String\n  zipCode    String\n  isDefault  Boolean   @default(false)\n  createdAt  DateTime  @default(now())\n  updatedAt  DateTime  @updatedAt\n  deletedAt  DateTime?\n  customer   Customer  @relation(fields: [customerId], references: [id])\n  orders     Order[]\n}\n\nmodel Product {\n  id                 String              @id @default(uuid())\n  name               String\n  brand              String\n  model              String\n  sku                String              @unique\n  price              Decimal\n  description        String?\n  isPreorder         Boolean             @default(false)\n  active             Boolean             @default(true)\n  createdAt          DateTime            @default(now())\n  updatedAt          DateTime            @updatedAt\n  deletedAt          DateTime?\n  inventory          Inventory?\n  inventoryMovements InventoryMovement[]\n  orderItems         OrderItem[]\n  productRequests    ProductRequest[]\n}\n\nmodel ProductRequest {\n  id             String               @id @default(uuid())\n  customerId     String\n  productId      String\n  paymentLinkId  String?              @unique\n  quantity       Int\n  status         ProductRequestStatus @default(pending)\n  paymentLinkUrl String?\n  notes          String?\n  createdAt      DateTime             @default(now())\n  updatedAt      DateTime             @updatedAt\n  deletedAt      DateTime?\n  customer       Customer             @relation(fields: [customerId], references: [id])\n  product        Product              @relation(fields: [productId], references: [id])\n  paymentLink    PaymentLink?         @relation(\"ProductRequestPaymentLink\", fields: [paymentLinkId], references: [id])\n  order          Order?\n}\n\nmodel PaymentLink {\n  id                  String                        @id @default(uuid())\n  provider            String\n  providerId          String                        @unique\n  url                 String\n  name                String\n  description         String?\n  value               Decimal\n  billingType         PaymentLinkBillingType\n  chargeType          PaymentLinkChargeType\n  dueDateLimitDays    Int?\n  maxInstallmentCount Int?\n  subscriptionCycle   PaymentLinkSubscriptionCycle?\n  notificationEnabled Boolean?                      @default(true)\n  status              PaymentLinkStatus             @default(pending)\n  createdAt           DateTime                      @default(now())\n  updatedAt           DateTime                      @updatedAt\n  deletedAt           DateTime?\n  productRequest      ProductRequest?               @relation(\"ProductRequestPaymentLink\")\n}\n\nmodel Inventory {\n  id                String    @id @default(uuid())\n  productId         String    @unique\n  quantityAvailable Int\n  quantityReserved  Int\n  createdAt         DateTime  @default(now())\n  updatedAt         DateTime  @updatedAt\n  deletedAt         DateTime?\n  product           Product   @relation(fields: [productId], references: [id])\n}\n\nmodel InventoryMovement {\n  id            String                         @id @default(uuid())\n  productId     String\n  type          InventoryMovementType\n  quantity      Int\n  referenceType InventoryMovementReferenceType\n  referenceId   String\n  createdAt     DateTime                       @default(now())\n  updatedAt     DateTime                       @updatedAt\n  deletedAt     DateTime?\n  product       Product                        @relation(fields: [productId], references: [id])\n}\n\nmodel Coupon {\n  id                String     @id @default(uuid())\n  code              String     @unique\n  type              CouponType\n  value             Decimal\n  maxDiscountAmount Decimal?\n  minOrderAmount    Decimal?\n  usageLimit        Int?\n  usedCount         Int        @default(0)\n  startsAt          DateTime?\n  expiresAt         DateTime?\n  active            Boolean    @default(true)\n  createdAt         DateTime   @default(now())\n  updatedAt         DateTime   @updatedAt\n  deletedAt         DateTime?\n  orders            Order[]\n}\n\nmodel Order {\n  id               String               @id @default(uuid())\n  customerId       String\n  addressId        String\n  couponId         String?\n  productRequestId String?              @unique\n  isPreorder       Boolean              @default(false)\n  status           OrderStatus\n  subtotalAmount   Decimal\n  discountAmount   Decimal\n  totalAmount      Decimal\n  createdAt        DateTime             @default(now())\n  updatedAt        DateTime             @updatedAt\n  deletedAt        DateTime?\n  customer         Customer             @relation(fields: [customerId], references: [id])\n  address          Address              @relation(fields: [addressId], references: [id])\n  coupon           Coupon?              @relation(fields: [couponId], references: [id])\n  productRequest   ProductRequest?      @relation(fields: [productRequestId], references: [id])\n  items            OrderItem[]\n  payment          Payment?\n  shipping         Shipping?\n  statusHistory    OrderStatusHistory[]\n}\n\nmodel OrderItem {\n  id         String    @id @default(uuid())\n  orderId    String\n  productId  String\n  quantity   Int\n  unitPrice  Decimal\n  totalPrice Decimal\n  createdAt  DateTime  @default(now())\n  updatedAt  DateTime  @updatedAt\n  deletedAt  DateTime?\n  order      Order     @relation(fields: [orderId], references: [id])\n  product    Product   @relation(fields: [productId], references: [id])\n}\n\nmodel OrderStatusHistory {\n  id         String               @id @default(uuid())\n  orderId    String\n  fromStatus OrderStatus\n  toStatus   OrderStatus\n  changedBy  OrderStatusChangedBy\n  createdAt  DateTime             @default(now())\n  updatedAt  DateTime             @updatedAt\n  deletedAt  DateTime?\n  order      Order                @relation(fields: [orderId], references: [id])\n}\n\nmodel Payment {\n  id               String               @id @default(uuid())\n  orderId          String               @unique\n  paymentProfileId String?\n  method           PaymentMethod\n  amount           Decimal\n  installments     Int?\n  status           PaymentStatus\n  createdAt        DateTime             @default(now())\n  updatedAt        DateTime             @updatedAt\n  deletedAt        DateTime?\n  order            Order                @relation(fields: [orderId], references: [id])\n  paymentProfile   PaymentProfile?      @relation(fields: [paymentProfileId], references: [id])\n  transactions     PaymentTransaction[]\n}\n\nmodel PaymentProfile {\n  id              String             @id @default(uuid())\n  customerId      String\n  type            PaymentProfileType\n  brand           String\n  last4           String\n  holderName      String\n  expirationMonth Int\n  expirationYear  Int\n  provider        String\n  externalToken   String\n  isDefault       Boolean            @default(false)\n  createdAt       DateTime           @default(now())\n  updatedAt       DateTime           @updatedAt\n  deletedAt       DateTime?\n  customer        Customer           @relation(fields: [customerId], references: [id])\n  payments        Payment[]\n}\n\nmodel PaymentTransaction {\n  id         String    @id @default(uuid())\n  paymentId  String\n  provider   String\n  externalId String\n  status     String\n  payload    Json\n  createdAt  DateTime  @default(now())\n  updatedAt  DateTime  @updatedAt\n  deletedAt  DateTime?\n  payment    Payment   @relation(fields: [paymentId], references: [id])\n}\n\nmodel Shipping {\n  id           String         @id @default(uuid())\n  orderId      String         @unique\n  status       ShippingStatus\n  carrier      String?\n  trackingCode String?\n  shippedAt    DateTime?\n  deliveredAt  DateTime?\n  createdAt    DateTime       @default(now())\n  updatedAt    DateTime       @updatedAt\n  deletedAt    DateTime?\n  order        Order          @relation(fields: [orderId], references: [id])\n}\n\nmodel QueueFailedJob {\n  id        String    @id @default(uuid())\n  queue     String\n  jobId     String\n  error     String\n  payload   Json\n  createdAt DateTime  @default(now())\n  updatedAt DateTime  @updatedAt\n  deletedAt DateTime?\n}\n\nmodel QueueProcessedEvent {\n  id        String    @id @default(uuid())\n  queue     String\n  jobId     String\n  event     String\n  payload   Json\n  createdAt DateTime  @default(now())\n  updatedAt DateTime  @updatedAt\n  deletedAt DateTime?\n}\n",
   "runtimeDataModel": {
     "models": {},
     "enums": {},
@@ -28,7 +28,7 @@ const config: runtime.GetPrismaClientConfig = {
   }
 }
 
-config.runtimeDataModel = JSON.parse("{\"models\":{\"User\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"email\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"password\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"}],\"dbName\":null}},\"enums\":{},\"types\":{}}")
+config.runtimeDataModel = JSON.parse("{\"models\":{\"Customer\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"name\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"email\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"password\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"document\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"phone\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"role\",\"kind\":\"enum\",\"type\":\"UserRole\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"deletedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"addresses\",\"kind\":\"object\",\"type\":\"Address\",\"relationName\":\"AddressToCustomer\"},{\"name\":\"orders\",\"kind\":\"object\",\"type\":\"Order\",\"relationName\":\"CustomerToOrder\"},{\"name\":\"paymentProfiles\",\"kind\":\"object\",\"type\":\"PaymentProfile\",\"relationName\":\"CustomerToPaymentProfile\"},{\"name\":\"productRequests\",\"kind\":\"object\",\"type\":\"ProductRequest\",\"relationName\":\"CustomerToProductRequest\"}],\"dbName\":null},\"Address\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"customerId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"street\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"number\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"complement\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"city\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"state\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"zipCode\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"isDefault\",\"kind\":\"scalar\",\"type\":\"Boolean\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"deletedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"customer\",\"kind\":\"object\",\"type\":\"Customer\",\"relationName\":\"AddressToCustomer\"},{\"name\":\"orders\",\"kind\":\"object\",\"type\":\"Order\",\"relationName\":\"AddressToOrder\"}],\"dbName\":null},\"Product\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"name\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"brand\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"model\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"sku\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"price\",\"kind\":\"scalar\",\"type\":\"Decimal\"},{\"name\":\"description\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"isPreorder\",\"kind\":\"scalar\",\"type\":\"Boolean\"},{\"name\":\"active\",\"kind\":\"scalar\",\"type\":\"Boolean\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"deletedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"inventory\",\"kind\":\"object\",\"type\":\"Inventory\",\"relationName\":\"InventoryToProduct\"},{\"name\":\"inventoryMovements\",\"kind\":\"object\",\"type\":\"InventoryMovement\",\"relationName\":\"InventoryMovementToProduct\"},{\"name\":\"orderItems\",\"kind\":\"object\",\"type\":\"OrderItem\",\"relationName\":\"OrderItemToProduct\"},{\"name\":\"productRequests\",\"kind\":\"object\",\"type\":\"ProductRequest\",\"relationName\":\"ProductToProductRequest\"}],\"dbName\":null},\"ProductRequest\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"customerId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"productId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"paymentLinkId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"quantity\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"status\",\"kind\":\"enum\",\"type\":\"ProductRequestStatus\"},{\"name\":\"paymentLinkUrl\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"notes\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"deletedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"customer\",\"kind\":\"object\",\"type\":\"Customer\",\"relationName\":\"CustomerToProductRequest\"},{\"name\":\"product\",\"kind\":\"object\",\"type\":\"Product\",\"relationName\":\"ProductToProductRequest\"},{\"name\":\"paymentLink\",\"kind\":\"object\",\"type\":\"PaymentLink\",\"relationName\":\"ProductRequestPaymentLink\"},{\"name\":\"order\",\"kind\":\"object\",\"type\":\"Order\",\"relationName\":\"OrderToProductRequest\"}],\"dbName\":null},\"PaymentLink\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"provider\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"providerId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"url\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"name\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"description\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"value\",\"kind\":\"scalar\",\"type\":\"Decimal\"},{\"name\":\"billingType\",\"kind\":\"enum\",\"type\":\"PaymentLinkBillingType\"},{\"name\":\"chargeType\",\"kind\":\"enum\",\"type\":\"PaymentLinkChargeType\"},{\"name\":\"dueDateLimitDays\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"maxInstallmentCount\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"subscriptionCycle\",\"kind\":\"enum\",\"type\":\"PaymentLinkSubscriptionCycle\"},{\"name\":\"notificationEnabled\",\"kind\":\"scalar\",\"type\":\"Boolean\"},{\"name\":\"status\",\"kind\":\"enum\",\"type\":\"PaymentLinkStatus\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"deletedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"productRequest\",\"kind\":\"object\",\"type\":\"ProductRequest\",\"relationName\":\"ProductRequestPaymentLink\"}],\"dbName\":null},\"Inventory\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"productId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"quantityAvailable\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"quantityReserved\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"deletedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"product\",\"kind\":\"object\",\"type\":\"Product\",\"relationName\":\"InventoryToProduct\"}],\"dbName\":null},\"InventoryMovement\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"productId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"type\",\"kind\":\"enum\",\"type\":\"InventoryMovementType\"},{\"name\":\"quantity\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"referenceType\",\"kind\":\"enum\",\"type\":\"InventoryMovementReferenceType\"},{\"name\":\"referenceId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"deletedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"product\",\"kind\":\"object\",\"type\":\"Product\",\"relationName\":\"InventoryMovementToProduct\"}],\"dbName\":null},\"Coupon\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"code\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"type\",\"kind\":\"enum\",\"type\":\"CouponType\"},{\"name\":\"value\",\"kind\":\"scalar\",\"type\":\"Decimal\"},{\"name\":\"maxDiscountAmount\",\"kind\":\"scalar\",\"type\":\"Decimal\"},{\"name\":\"minOrderAmount\",\"kind\":\"scalar\",\"type\":\"Decimal\"},{\"name\":\"usageLimit\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"usedCount\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"startsAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"expiresAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"active\",\"kind\":\"scalar\",\"type\":\"Boolean\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"deletedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"orders\",\"kind\":\"object\",\"type\":\"Order\",\"relationName\":\"CouponToOrder\"}],\"dbName\":null},\"Order\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"customerId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"addressId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"couponId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"productRequestId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"isPreorder\",\"kind\":\"scalar\",\"type\":\"Boolean\"},{\"name\":\"status\",\"kind\":\"enum\",\"type\":\"OrderStatus\"},{\"name\":\"subtotalAmount\",\"kind\":\"scalar\",\"type\":\"Decimal\"},{\"name\":\"discountAmount\",\"kind\":\"scalar\",\"type\":\"Decimal\"},{\"name\":\"totalAmount\",\"kind\":\"scalar\",\"type\":\"Decimal\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"deletedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"customer\",\"kind\":\"object\",\"type\":\"Customer\",\"relationName\":\"CustomerToOrder\"},{\"name\":\"address\",\"kind\":\"object\",\"type\":\"Address\",\"relationName\":\"AddressToOrder\"},{\"name\":\"coupon\",\"kind\":\"object\",\"type\":\"Coupon\",\"relationName\":\"CouponToOrder\"},{\"name\":\"productRequest\",\"kind\":\"object\",\"type\":\"ProductRequest\",\"relationName\":\"OrderToProductRequest\"},{\"name\":\"items\",\"kind\":\"object\",\"type\":\"OrderItem\",\"relationName\":\"OrderToOrderItem\"},{\"name\":\"payment\",\"kind\":\"object\",\"type\":\"Payment\",\"relationName\":\"OrderToPayment\"},{\"name\":\"shipping\",\"kind\":\"object\",\"type\":\"Shipping\",\"relationName\":\"OrderToShipping\"},{\"name\":\"statusHistory\",\"kind\":\"object\",\"type\":\"OrderStatusHistory\",\"relationName\":\"OrderToOrderStatusHistory\"}],\"dbName\":null},\"OrderItem\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"orderId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"productId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"quantity\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"unitPrice\",\"kind\":\"scalar\",\"type\":\"Decimal\"},{\"name\":\"totalPrice\",\"kind\":\"scalar\",\"type\":\"Decimal\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"deletedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"order\",\"kind\":\"object\",\"type\":\"Order\",\"relationName\":\"OrderToOrderItem\"},{\"name\":\"product\",\"kind\":\"object\",\"type\":\"Product\",\"relationName\":\"OrderItemToProduct\"}],\"dbName\":null},\"OrderStatusHistory\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"orderId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"fromStatus\",\"kind\":\"enum\",\"type\":\"OrderStatus\"},{\"name\":\"toStatus\",\"kind\":\"enum\",\"type\":\"OrderStatus\"},{\"name\":\"changedBy\",\"kind\":\"enum\",\"type\":\"OrderStatusChangedBy\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"deletedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"order\",\"kind\":\"object\",\"type\":\"Order\",\"relationName\":\"OrderToOrderStatusHistory\"}],\"dbName\":null},\"Payment\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"orderId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"paymentProfileId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"method\",\"kind\":\"enum\",\"type\":\"PaymentMethod\"},{\"name\":\"amount\",\"kind\":\"scalar\",\"type\":\"Decimal\"},{\"name\":\"installments\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"status\",\"kind\":\"enum\",\"type\":\"PaymentStatus\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"deletedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"order\",\"kind\":\"object\",\"type\":\"Order\",\"relationName\":\"OrderToPayment\"},{\"name\":\"paymentProfile\",\"kind\":\"object\",\"type\":\"PaymentProfile\",\"relationName\":\"PaymentToPaymentProfile\"},{\"name\":\"transactions\",\"kind\":\"object\",\"type\":\"PaymentTransaction\",\"relationName\":\"PaymentToPaymentTransaction\"}],\"dbName\":null},\"PaymentProfile\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"customerId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"type\",\"kind\":\"enum\",\"type\":\"PaymentProfileType\"},{\"name\":\"brand\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"last4\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"holderName\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"expirationMonth\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"expirationYear\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"provider\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"externalToken\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"isDefault\",\"kind\":\"scalar\",\"type\":\"Boolean\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"deletedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"customer\",\"kind\":\"object\",\"type\":\"Customer\",\"relationName\":\"CustomerToPaymentProfile\"},{\"name\":\"payments\",\"kind\":\"object\",\"type\":\"Payment\",\"relationName\":\"PaymentToPaymentProfile\"}],\"dbName\":null},\"PaymentTransaction\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"paymentId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"provider\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"externalId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"status\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"payload\",\"kind\":\"scalar\",\"type\":\"Json\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"deletedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"payment\",\"kind\":\"object\",\"type\":\"Payment\",\"relationName\":\"PaymentToPaymentTransaction\"}],\"dbName\":null},\"Shipping\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"orderId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"status\",\"kind\":\"enum\",\"type\":\"ShippingStatus\"},{\"name\":\"carrier\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"trackingCode\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"shippedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"deliveredAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"deletedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"order\",\"kind\":\"object\",\"type\":\"Order\",\"relationName\":\"OrderToShipping\"}],\"dbName\":null},\"QueueFailedJob\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"queue\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"jobId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"error\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"payload\",\"kind\":\"scalar\",\"type\":\"Json\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"deletedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"}],\"dbName\":null},\"QueueProcessedEvent\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"queue\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"jobId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"event\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"payload\",\"kind\":\"scalar\",\"type\":\"Json\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"deletedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"}],\"dbName\":null}},\"enums\":{},\"types\":{}}")
 
 async function decodeBase64AsWasm(wasmBase64: string): Promise<WebAssembly.Module> {
   const { Buffer } = await import('node:buffer')
@@ -60,8 +60,8 @@ export interface PrismaClientConstructor {
    * @example
    * ```
    * const prisma = new PrismaClient()
-   * // Fetch zero or more Users
-   * const users = await prisma.user.findMany()
+   * // Fetch zero or more Customers
+   * const customers = await prisma.customer.findMany()
    * ```
    * 
    * Read more in our [docs](https://pris.ly/d/client).
@@ -82,8 +82,8 @@ export interface PrismaClientConstructor {
  * @example
  * ```
  * const prisma = new PrismaClient()
- * // Fetch zero or more Users
- * const users = await prisma.user.findMany()
+ * // Fetch zero or more Customers
+ * const customers = await prisma.customer.findMany()
  * ```
  * 
  * Read more in our [docs](https://pris.ly/d/client).
@@ -177,14 +177,174 @@ export interface PrismaClient<
   }>>
 
       /**
-   * `prisma.user`: Exposes CRUD operations for the **User** model.
+   * `prisma.customer`: Exposes CRUD operations for the **Customer** model.
     * Example usage:
     * ```ts
-    * // Fetch zero or more Users
-    * const users = await prisma.user.findMany()
+    * // Fetch zero or more Customers
+    * const customers = await prisma.customer.findMany()
     * ```
     */
-  get user(): Prisma.UserDelegate<ExtArgs, { omit: OmitOpts }>;
+  get customer(): Prisma.CustomerDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.address`: Exposes CRUD operations for the **Address** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more Addresses
+    * const addresses = await prisma.address.findMany()
+    * ```
+    */
+  get address(): Prisma.AddressDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.product`: Exposes CRUD operations for the **Product** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more Products
+    * const products = await prisma.product.findMany()
+    * ```
+    */
+  get product(): Prisma.ProductDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.productRequest`: Exposes CRUD operations for the **ProductRequest** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more ProductRequests
+    * const productRequests = await prisma.productRequest.findMany()
+    * ```
+    */
+  get productRequest(): Prisma.ProductRequestDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.paymentLink`: Exposes CRUD operations for the **PaymentLink** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more PaymentLinks
+    * const paymentLinks = await prisma.paymentLink.findMany()
+    * ```
+    */
+  get paymentLink(): Prisma.PaymentLinkDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.inventory`: Exposes CRUD operations for the **Inventory** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more Inventories
+    * const inventories = await prisma.inventory.findMany()
+    * ```
+    */
+  get inventory(): Prisma.InventoryDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.inventoryMovement`: Exposes CRUD operations for the **InventoryMovement** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more InventoryMovements
+    * const inventoryMovements = await prisma.inventoryMovement.findMany()
+    * ```
+    */
+  get inventoryMovement(): Prisma.InventoryMovementDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.coupon`: Exposes CRUD operations for the **Coupon** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more Coupons
+    * const coupons = await prisma.coupon.findMany()
+    * ```
+    */
+  get coupon(): Prisma.CouponDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.order`: Exposes CRUD operations for the **Order** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more Orders
+    * const orders = await prisma.order.findMany()
+    * ```
+    */
+  get order(): Prisma.OrderDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.orderItem`: Exposes CRUD operations for the **OrderItem** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more OrderItems
+    * const orderItems = await prisma.orderItem.findMany()
+    * ```
+    */
+  get orderItem(): Prisma.OrderItemDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.orderStatusHistory`: Exposes CRUD operations for the **OrderStatusHistory** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more OrderStatusHistories
+    * const orderStatusHistories = await prisma.orderStatusHistory.findMany()
+    * ```
+    */
+  get orderStatusHistory(): Prisma.OrderStatusHistoryDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.payment`: Exposes CRUD operations for the **Payment** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more Payments
+    * const payments = await prisma.payment.findMany()
+    * ```
+    */
+  get payment(): Prisma.PaymentDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.paymentProfile`: Exposes CRUD operations for the **PaymentProfile** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more PaymentProfiles
+    * const paymentProfiles = await prisma.paymentProfile.findMany()
+    * ```
+    */
+  get paymentProfile(): Prisma.PaymentProfileDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.paymentTransaction`: Exposes CRUD operations for the **PaymentTransaction** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more PaymentTransactions
+    * const paymentTransactions = await prisma.paymentTransaction.findMany()
+    * ```
+    */
+  get paymentTransaction(): Prisma.PaymentTransactionDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.shipping`: Exposes CRUD operations for the **Shipping** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more Shippings
+    * const shippings = await prisma.shipping.findMany()
+    * ```
+    */
+  get shipping(): Prisma.ShippingDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.queueFailedJob`: Exposes CRUD operations for the **QueueFailedJob** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more QueueFailedJobs
+    * const queueFailedJobs = await prisma.queueFailedJob.findMany()
+    * ```
+    */
+  get queueFailedJob(): Prisma.QueueFailedJobDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.queueProcessedEvent`: Exposes CRUD operations for the **QueueProcessedEvent** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more QueueProcessedEvents
+    * const queueProcessedEvents = await prisma.queueProcessedEvent.findMany()
+    * ```
+    */
+  get queueProcessedEvent(): Prisma.QueueProcessedEventDelegate<ExtArgs, { omit: OmitOpts }>;
 }
 
 export function getPrismaClientClass(): PrismaClientConstructor {

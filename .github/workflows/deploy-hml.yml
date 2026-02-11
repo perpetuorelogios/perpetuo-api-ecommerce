@@ -52,6 +52,7 @@ jobs:
               redis:
                 image: redis:7-alpine
                 restart: unless-stopped
+                command: redis-server --maxmemory 256mb --maxmemory-policy noeviction
                 volumes:
                   - redis-hml-data:/data
 
@@ -63,9 +64,19 @@ jobs:
             NODE_ENV=hml
             PORT=3000
             DATABASE_URL=${{ secrets.HML_DATABASE_URL }}
+            DIRECT_URL=${{ secrets.HML_DIRECT_URL }}
             REDIS_URL=redis://redis:6379
             JWT_SECRET=${{ secrets.JWT_SECRET_HML }}
             JWT_EXPIRES_IN=1d
+            ACCESS_TOKEN_EXPIRES_IN=15m
+            SESSION_TTL_SECONDS=604800
+            RATE_LIMIT_MAX=20
+            RATE_LIMIT_WINDOW_SECONDS=60
+            LOGIN_MAX_ATTEMPTS=5
+            LOGIN_LOCK_SECONDS=900
+            ASAAS_API_URL=${{ secrets.ASAAS_API_URL }}
+            ASAAS_API_KEY=${{ secrets.ASAAS_API_KEY_HML }}
+            ASAAS_WEBHOOK_TOKEN=${{ secrets.ASAAS_WEBHOOK_TOKEN_HML }}
             EOF
 
             docker compose -p perpetuo-hml down || true
@@ -86,3 +97,19 @@ jobs:
 
             docker compose -p perpetuo-hml exec -T api \
               npx prisma migrate deploy
+
+      # 5️⃣ Prisma Seed (HML - Popula dados padrão)
+      - name: Run Prisma Seed (HML)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: root
+          port: 22
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+
+            cd /var/www/perpetuorelogios-hml/api/app
+
+            docker compose -p perpetuo-hml exec -T api \
+              npm run db:seed

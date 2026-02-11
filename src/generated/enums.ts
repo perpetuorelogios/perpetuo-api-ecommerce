@@ -9,7 +9,148 @@
 * 🟢 You can import this file directly.
 */
 
+export const InventoryMovementType = {
+  in: 'in',
+  out: 'out',
+  reserve: 'reserve',
+  release: 'release',
+  adjust: 'adjust'
+} as const
+
+export type InventoryMovementType = (typeof InventoryMovementType)[keyof typeof InventoryMovementType]
 
 
-// This file is empty because there are no enums in the schema.
-export {}
+export const InventoryMovementReferenceType = {
+  order: 'order',
+  cancel: 'cancel',
+  return: 'return',
+  manual: 'manual'
+} as const
+
+export type InventoryMovementReferenceType = (typeof InventoryMovementReferenceType)[keyof typeof InventoryMovementReferenceType]
+
+
+export const CouponType = {
+  percentage: 'percentage',
+  fixed: 'fixed'
+} as const
+
+export type CouponType = (typeof CouponType)[keyof typeof CouponType]
+
+
+export const OrderStatus = {
+  draft: 'draft',
+  pending: 'pending',
+  paid: 'paid',
+  completed: 'completed',
+  canceled: 'canceled',
+  refunded: 'refunded'
+} as const
+
+export type OrderStatus = (typeof OrderStatus)[keyof typeof OrderStatus]
+
+
+export const OrderStatusChangedBy = {
+  system: 'system',
+  admin: 'admin',
+  customer: 'customer'
+} as const
+
+export type OrderStatusChangedBy = (typeof OrderStatusChangedBy)[keyof typeof OrderStatusChangedBy]
+
+
+export const PaymentMethod = {
+  credit_card: 'credit_card',
+  pix: 'pix',
+  boleto: 'boleto',
+  transfer: 'transfer'
+} as const
+
+export type PaymentMethod = (typeof PaymentMethod)[keyof typeof PaymentMethod]
+
+
+export const PaymentStatus = {
+  pending: 'pending',
+  paid: 'paid',
+  failed: 'failed',
+  refunded: 'refunded'
+} as const
+
+export type PaymentStatus = (typeof PaymentStatus)[keyof typeof PaymentStatus]
+
+
+export const PaymentProfileType = {
+  credit_card: 'credit_card',
+  debit_card: 'debit_card',
+  wallet: 'wallet'
+} as const
+
+export type PaymentProfileType = (typeof PaymentProfileType)[keyof typeof PaymentProfileType]
+
+
+export const ShippingStatus = {
+  pending: 'pending',
+  shipped: 'shipped',
+  delivered: 'delivered',
+  returned: 'returned'
+} as const
+
+export type ShippingStatus = (typeof ShippingStatus)[keyof typeof ShippingStatus]
+
+
+export const UserRole = {
+  admin: 'admin',
+  seller: 'seller',
+  customer: 'customer'
+} as const
+
+export type UserRole = (typeof UserRole)[keyof typeof UserRole]
+
+
+export const PaymentLinkBillingType = {
+  UNDEFINED: 'UNDEFINED',
+  CREDIT_CARD: 'CREDIT_CARD',
+  BOLETO: 'BOLETO',
+  PIX: 'PIX',
+  TRANSFER: 'TRANSFER'
+} as const
+
+export type PaymentLinkBillingType = (typeof PaymentLinkBillingType)[keyof typeof PaymentLinkBillingType]
+
+
+export const PaymentLinkChargeType = {
+  DETACHED: 'DETACHED',
+  INSTALLMENT: 'INSTALLMENT',
+  RECURRENT: 'RECURRENT'
+} as const
+
+export type PaymentLinkChargeType = (typeof PaymentLinkChargeType)[keyof typeof PaymentLinkChargeType]
+
+
+export const PaymentLinkSubscriptionCycle = {
+  MONTHLY: 'MONTHLY',
+  WEEKLY: 'WEEKLY',
+  YEARLY: 'YEARLY'
+} as const
+
+export type PaymentLinkSubscriptionCycle = (typeof PaymentLinkSubscriptionCycle)[keyof typeof PaymentLinkSubscriptionCycle]
+
+
+export const PaymentLinkStatus = {
+  pending: 'pending',
+  paid: 'paid',
+  failed: 'failed',
+  canceled: 'canceled'
+} as const
+
+export type PaymentLinkStatus = (typeof PaymentLinkStatus)[keyof typeof PaymentLinkStatus]
+
+
+export const ProductRequestStatus = {
+  pending: 'pending',
+  quoted: 'quoted',
+  completed: 'completed',
+  canceled: 'canceled'
+} as const
+
+export type ProductRequestStatus = (typeof ProductRequestStatus)[keyof typeof ProductRequestStatus]

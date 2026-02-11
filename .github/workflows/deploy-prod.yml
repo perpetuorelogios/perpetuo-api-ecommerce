@@ -54,13 +54,16 @@ jobs:
           DIR_URL: ${{ secrets.PROD_DIRECT_URL }}
           REDIS_URL: ${{ secrets.PROD_REDIS_URL }}
           JWT_SEC: ${{ secrets.JWT_SECRET }}
+          ASAAS_API_URL: ${{ secrets.ASAAS_API_URL }}
+          ASAAS_API_KEY: ${{ secrets.ASAAS_API_KEY }}
+          ASAAS_WEBHOOK_TOKEN: ${{ secrets.ASAAS_WEBHOOK_TOKEN }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: root
           port: 22
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           # Injetamos as variáveis no terminal SSH
-          envs: DB_URL,DIR_URL,REDIS_URL,JWT_SEC
+          envs: DB_URL,DIR_URL,REDIS_URL,JWT_SEC,ASAAS_API_URL,ASAAS_API_KEY,ASAAS_WEBHOOK_TOKEN
           script: |
             set -e
             echo "🚀 Deploy Zero-Downtime Iniciado"
@@ -78,12 +81,21 @@ jobs:
             # 2. Gerar .env (Para o PM2 rodar o app)
             # -----------------------------
             echo "📝 Atualizando .env..."
-            printf "NODE_ENV=production\n" > .env
+            printf "NODE_ENV=prod\n" > .env
             printf "PORT=3000\n" >> .env
             printf "DATABASE_URL=\"%s\"\n" "$DB_URL" >> .env
             printf "DIRECT_URL=\"%s\"\n" "$DIR_URL" >> .env
             printf "REDIS_URL=\"%s\"\n" "$REDIS_URL" >> .env
             printf "JWT_SECRET=\"%s\"\n" "$JWT_SEC" >> .env
+            printf "ASAAS_API_URL=\"%s\"\n" "$ASAAS_API_URL" >> .env
+            printf "ASAAS_API_KEY=\"%s\"\n" "$ASAAS_API_KEY" >> .env
+            printf "ASAAS_WEBHOOK_TOKEN=\"%s\"\n" "$ASAAS_WEBHOOK_TOKEN" >> .env
+            printf "ACCESS_TOKEN_EXPIRES_IN=15m\n" >> .env
+            printf "SESSION_TTL_SECONDS=604800\n" >> .env
+            printf "RATE_LIMIT_MAX=20\n" >> .env
+            printf "RATE_LIMIT_WINDOW_SECONDS=60\n" >> .env
+            printf "LOGIN_MAX_ATTEMPTS=5\n" >> .env
+            printf "LOGIN_LOCK_SECONDS=900\n" >> .env
             printf "JWT_EXPIRES_IN=1d\n" >> .env
 
             # -----------------------------
@@ -96,6 +108,9 @@ jobs:
 
             # Roda o push usando as variáveis injetadas + arquivo config.ts que subiu no upload
             DATABASE_URL="$DB_URL" DIRECT_URL="$DIR_URL" npx -y prisma db push --accept-data-loss
+
+            # Roda o seed (popula dados padrão)
+            DATABASE_URL="$DB_URL" DIRECT_URL="$DIR_URL" npm run db:seed
 
             # -----------------------------
             # 4. LIMPEZA (Opcional, mas bom para economizar espaço)
